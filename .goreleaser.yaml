@@ -36,3 +36,7 @@ checksum:
 # --release-notes, so GoReleaser's own changelog is switched off.
 changelog:
   disable: true
+
+# A tag with a pre-release suffix (v0.1.0-alpha.1) is published as a GitHub pre-release.
+release:
+  prerelease: auto
