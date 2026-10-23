@@ -1,4 +1,4 @@
-# serve refuses unusable options and says triggers are off without a token.
+# serve refuses unusable options, and its token command shows a token once.
 exec flowi workspace mount ./example
 ! exec flowi serve --no-replay --no-triggers --no-schedules
 stderr 'nothing to serve'
@@ -6,17 +6,6 @@ stderr 'nothing to serve'
 stderr 'latency'
 ! exec flowi serve --record ftp://example.com
 stderr 'http://'
-freeport PORT
-exec flowi serve --replay-addr 127.0.0.1:$PORT --trigger-addr 127.0.0.1:0 &quiet&
-http-wait http://127.0.0.1:$PORT/__flowi/routes
-# testscript cannot send Ctrl-C to a Windows process, so there it is killed.
-[!windows] kill -INT quiet
-[windows] kill quiet
-[!windows] wait quiet
-[windows] ! wait quiet
-stdout 'triggers are off'
-stdout 'flowi serve token'
-
 # The token command shows a new token once.
 exec flowi serve token
 stdout '^[0-9a-f]{64}$'

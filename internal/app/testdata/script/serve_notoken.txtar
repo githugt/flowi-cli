@@ -1,0 +1,11 @@
+# serve says triggers are off without a token, and stops cleanly on Ctrl-C.
+# testscript cannot send Ctrl-C to a Windows process, so this does not run there (TestServe_… in serve_test.go checks the drain on every platform).
+[windows] skip 'no Ctrl-C on Windows'
+exec flowi workspace mount ./example
+freeport PORT
+exec flowi serve --replay-addr 127.0.0.1:$PORT --trigger-addr 127.0.0.1:0 &quiet&
+http-wait http://127.0.0.1:$PORT/__flowi/routes
+kill -INT quiet
+wait quiet
+stdout 'triggers are off'
+stdout 'flowi serve token'
