@@ -1,0 +1,60 @@
+# A file whose settings fmt does not understand is skipped, never rewritten.
+! exec flowi fmt ./c
+stdout 'warning FLW-SET-001: unknown setting "timout"'
+stdout 'error FLW-SET-002'
+stdout '^skipped c/requests/bad.req.yaml$'
+stdout '^formatted c/requests/messy.req.yaml$'
+cmp c/requests/bad.req.yaml bad.yaml
+
+# A second YAML document is an error, so the file is skipped too.
+cp twodocs.yaml c/requests/messy.req.yaml
+! exec flowi fmt ./c
+stdout 'exactly one YAML document'
+cmp c/requests/messy.req.yaml twodocs.yaml
+
+# Comments: reported and left alone unless --force.
+cp commented.yaml c/requests/messy.req.yaml
+rm c/requests/bad.req.yaml
+exec flowi fmt ./c
+stdout '^skipped c/requests/messy.req.yaml: it has comments, which fmt would remove \(use --force to rewrite it anyway\)$'
+cmp c/requests/messy.req.yaml commented.yaml
+exec flowi fmt ./c --force
+stdout '^formatted c/requests/messy.req.yaml \(comments removed\)$'
+! grep '#' c/requests/messy.req.yaml
+
+-- c/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000C1
+name: c
+-- c/requests/bad.req.yaml --
+name: Bad
+id: 01JA00000000000000000000C2
+versions:
+  "1":
+    url: /x
+    settings:
+      timout: 10s
+      timeout: 30
+-- bad.yaml --
+name: Bad
+id: 01JA00000000000000000000C2
+versions:
+  "1":
+    url: /x
+    settings:
+      timout: 10s
+      timeout: 30
+-- c/requests/messy.req.yaml --
+name: Messy
+id: 01JA00000000000000000000C3
+versions: {"1": {url: /m}}
+-- twodocs.yaml --
+id: 01JA00000000000000000000C3
+versions: {"1": {url: /m}}
+---
+name: lost
+-- commented.yaml --
+# keep me
+name: Messy
+id: 01JA00000000000000000000C3
+versions: {"1": {url: /m}}

@@ -1,0 +1,30 @@
+# Schedules live in workspace.yaml; the schedule command manages them.
+exec flowi workspace mount ./example
+exec flowi schedule add nightly --flow user-creation --cron '0 3 * * *' --env local --input email=a@b.c --tz UTC
+stdout 'Added schedule nightly'
+exec flowi schedule ls
+stdout 'NAME +CRON +NEXT +FLOW'
+stdout 'nightly +0 3 \* \* \* .* user-creation'
+exec flowi schedule ls --output json
+stdout '"name":"nightly"'
+stdout '"inputs":\{"email":"a@b.c"\}'
+
+! exec flowi schedule add nightly --flow user-creation --cron '@daily'
+stderr 'already exists'
+! exec flowi schedule add broken --flow user-creation --cron 'nope'
+stderr 'cron'
+! exec flowi schedule add broken --cron '@daily'
+stderr 'flow'
+
+exec flowi validate
+! stdout 'FLW-SERVE'
+exec flowi schedule add lost --flow no-such-flow --cron '@daily'
+exec flowi validate
+stdout 'FLW-SERVE-002'
+
+exec flowi schedule rm lost
+exec flowi schedule rm nightly
+! exec flowi schedule rm nightly
+stderr 'no schedule'
+exec flowi schedule ls
+! stdout nightly

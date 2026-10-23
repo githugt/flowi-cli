@@ -1,0 +1,52 @@
+# impact lists who uses a request and whether they still fit its contract
+# (the pinned examples next to the request).
+exec flowi workspace mount ./example
+exec flowi impact auth/login
+stdout '^auth/login · User creation$'
+stdout '^  version 1 · contract: example 200.json$'
+stdout '^  version 2 · contract: example v2-200.json$'
+stdout '^    ✓ flow user-creation › node login$'
+stdout '^    ✓ flow shared/login › node login$'
+stdout '^    ✓ hook post · request auth/login version 2 · inline #0$'
+stdout '^    ✓ request extract \+ assert$'
+stdout '^[0-9]+ compatible$'
+! stdout '✗'
+
+# --version narrows the report to one version.
+exec flowi impact auth/login --version 1
+stdout 'version 1 '
+! stdout 'version 2 '
+
+# Without examples or a saved response, reads are unknown (⚠), not broken.
+exec flowi impact config
+stdout '^  version 1 · contract: none$'
+stdout '^    ⚠ flow hooks/fetch-config › node fetch$'
+stdout '^        ⚠ nodes.fetch.body.client_id → \$\.client_id \(read by client\): no contract data$'
+
+# Renaming a field the flow and a hook read breaks both, and says where.
+cp v2-renamed.json example/requests/auth/login.examples/v2-200.json
+! exec flowi impact auth/login
+stdout '^    ✗ flow user-creation › node login$'
+stdout '^        ✗ nodes.login.token → \$\.token \(read by session\): not in example v2-200.json$'
+stdout '^    ✗ hook post · request auth/login version 2 · inline #0$'
+stdout '^        ✗ response.body.token → \$\.token \(read by has-token\): not in example v2-200.json$'
+stdout '^    ✗ request extract \+ assert$'
+stdout '^[0-9]+ broken, [0-9]+ compatible$'
+
+# JSON output is the report itself.
+! exec flowi impact auth/login --version 2 --output json
+stdout '"status": "broken"'
+stdout '"request": "auth/login"'
+
+# validate warns at the reading template but does not fail.
+exec flowi validate
+stdout 'FLW-CONTRACT-001'
+stdout 'user-creation.arazzo.yaml'
+
+-- v2-renamed.json --
+{
+  "version": "2",
+  "status": 200,
+  "headers": [{"name": "Content-Type", "value": "application/json"}],
+  "body": {"access_token": "usr_demo.signature", "user": {"id": "usr_demo"}}
+}

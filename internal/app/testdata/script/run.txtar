@@ -1,0 +1,23 @@
+# run executes a flow against the demo server and shows each node.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+exec flowi workspace mount ./example
+exec flowi run user-creation --env local
+stdout '^✓ login '
+stdout '^✓ verify '
+stdout '^✓ page-1 '
+stdout '^✓ page-2 '
+stdout '^✓ passed .* seed [0-9]+ · report '
+! stdout $PASSWORD
+! stderr $PASSWORD
+
+# --input values are templates for the flow's declared inputs.
+exec flowi run user-creation --env local --input email=ada@example.com --seed 3
+stdout 'seed 3'
+
+# Containers, subflows, polling and a digest on stdout.
+exec flowi run onboarding-check --env local
+stdout '^✓ poll '
+stdout '^  ✓ checks\[2\]/config '
+stdout '# Onboarding check'
+stdout '^✓ passed '
+! stdout $PASSWORD

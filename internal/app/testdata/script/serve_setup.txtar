@@ -1,0 +1,24 @@
+# serve refuses unusable options and says triggers are off without a token.
+exec flowi workspace mount ./example
+! exec flowi serve --no-replay --no-triggers --no-schedules
+stderr 'nothing to serve'
+! exec flowi serve --latency=-1s
+stderr 'latency'
+! exec flowi serve --record ftp://example.com
+stderr 'http://'
+freeport PORT
+exec flowi serve --replay-addr 127.0.0.1:$PORT --trigger-addr 127.0.0.1:0 &quiet&
+http-wait http://127.0.0.1:$PORT/__flowi/routes
+kill -INT quiet
+wait quiet
+stdout 'triggers are off'
+stdout 'flowi serve token'
+
+# The token command shows a new token once.
+exec flowi serve token
+stdout '^[0-9a-f]{64}$'
+exec flowi serve token
+! stdout .
+stderr 'already set'
+exec flowi serve token --rotate
+stdout '^[0-9a-f]{64}$'

@@ -1,0 +1,45 @@
+# The workspace mounts collection A from ./a (relative paths resolve from here).
+exec flowi workspace ls
+cmp stdout ls-ok.txt
+
+# A moved collection is reported missing, and can be located again.
+mv a moved
+exec flowi workspace ls
+cmp stdout ls-missing.txt
+stderr 'FLW-WS-001'
+exec flowi workspace locate 01JA0000000000000000000001 ./moved
+stdout '^Located 01JA0000000000000000000001 at \./moved$'
+exec flowi workspace ls
+stdout 'A +.*moved +ok'
+
+# Unmount, unmount again (refused), mount again.
+exec flowi workspace unmount 01JA0000000000000000000001
+stdout '^Unmounted 01JA0000000000000000000001$'
+! exec flowi workspace unmount 01JA0000000000000000000001
+stderr 'not mounted'
+exec flowi workspace mount ./moved
+stdout '^Mounted A \(01JA0000000000000000000001\) from \./moved$'
+! exec flowi workspace mount ./moved
+stderr 'already mounted'
+
+# Mounting a directory that is not a collection is a usage error.
+mkdir empty
+! exec flowi workspace mount ./empty
+stderr 'is not a collection'
+
+-- config/workspaces/default/workspace.yaml --
+id: 01JA00000000000000000000W1
+name: Default
+collections:
+  - id: 01JA0000000000000000000001
+    path: a
+-- a/flowi.yaml --
+format: 1
+id: 01JA0000000000000000000001
+name: A
+-- ls-ok.txt --
+ID                          NAME  PATH  STATUS
+01JA0000000000000000000001  A     a     ok
+-- ls-missing.txt --
+ID                          NAME  PATH  STATUS
+01JA0000000000000000000001  -     a     missing

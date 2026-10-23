@@ -1,0 +1,40 @@
+# Standalone sends keep cookies per collection until cleared.
+server-url tools/environments/local.yaml
+exec flowi workspace mount ./tools
+exec flowi send cookie-set --env local
+exec flowi send cookie-echo --env local
+stdout '"flavour": "chocolate"'
+
+exec flowi cookies clear
+stdout '^Cleared cookies for every collection$'
+exec flowi send cookie-echo --env local
+stdout '"flavour": ""'
+
+exec flowi send cookie-set --env local
+exec flowi cookies clear --collection Tools
+stdout '^Cleared cookies for Tools$'
+! exec flowi cookies clear --collection Nope
+stderr 'FLW-WS-005'
+
+-- tools/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000T1
+name: Tools
+-- tools/environments/local.yaml --
+id: 01JA00000000000000000000T2
+vars:
+  base_url: SERVER_URL
+-- tools/requests/cookie-set.req.yaml --
+id: 01JA00000000000000000000T5
+name: Cookie set
+versions:
+  "1":
+    method: GET
+    url: "{{env.base_url}}/cookie/set"
+-- tools/requests/cookie-echo.req.yaml --
+id: 01JA00000000000000000000T6
+name: Cookie echo
+versions:
+  "1":
+    method: GET
+    url: "{{env.base_url}}/cookie/echo"

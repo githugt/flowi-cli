@@ -1,0 +1,36 @@
+# import proto adds one gRPC request per unary or server-streaming method,
+# copies the .proto files it needs to protos/ and reports the rest.
+exec flowi import proto api/example.proto --init ./grpc
+stdout '^Created collection grpc'
+stderr 'FLW-IMPORT-001'
+stderr 'Upload'
+exists grpc/requests/ExampleService/GetExample.req.yaml
+exists grpc/requests/ExampleService/ListExamples.req.yaml
+! exists grpc/requests/ExampleService/Upload.req.yaml
+exists grpc/protos/example.proto
+exists grpc/protos/common/types.proto
+grep 'method: myexampleapp.ExampleService/GetExample' grpc/requests/ExampleService/GetExample.req.yaml
+exec flowi validate
+! stdout 'error'
+
+# A file that is not proto is refused.
+! exec flowi import proto api/bad.proto --collection grpc
+stderr 'FLW-IMPORT-002'
+
+-- api/example.proto --
+syntax = "proto3";
+package myexampleapp;
+import "common/types.proto";
+service ExampleService {
+  rpc GetExample(GetExampleRequest) returns (GetExampleResponse);
+  rpc ListExamples(GetExampleRequest) returns (stream GetExampleResponse);
+  rpc Upload(stream GetExampleRequest) returns (GetExampleResponse);
+}
+message GetExampleRequest { string id = 1; }
+message GetExampleResponse { string id = 1; common.Page page = 2; }
+-- api/common/types.proto --
+syntax = "proto3";
+package common;
+message Page { int32 size = 1; }
+-- api/bad.proto --
+this is not proto

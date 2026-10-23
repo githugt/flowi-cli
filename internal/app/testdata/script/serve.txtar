@@ -1,0 +1,38 @@
+# flowi serve replays pinned examples, runs flows for callers with the
+# token, and stops cleanly on a signal.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+env FLOWI_SECRET_SERVE_TRIGGER_TOKEN=tok-123
+exec flowi workspace mount ./example
+freeport REPLAY
+freeport TRIGGER
+exec flowi serve --replay-addr 127.0.0.1:$REPLAY --trigger-addr 127.0.0.1:$TRIGGER &server&
+http-wait http://127.0.0.1:$REPLAY/__flowi/routes
+
+# The replayer answers from pinned examples and says what it used.
+http POST http://127.0.0.1:$REPLAY/v1/login login.out
+grep '^STATUS 200$' login.out
+grep 'usr_demo.signature' login.out
+grep '^X-Flowi-Request: auth/login$' login.out
+http POST http://127.0.0.1:$REPLAY/v2/login v2.out
+grep '"user"' v2.out
+http GET http://127.0.0.1:$REPLAY/nowhere miss.out
+grep '^STATUS 404$' miss.out
+grep '^X-Flowi-Match: none$' miss.out
+
+# Triggers need the token; with it the flow runs and reports.
+http POST http://127.0.0.1:$TRIGGER/flows/shared/login/run?wait=30s denied.out 'body={"env": "local", "inputs": {"email": "a@b.c"}}'
+grep '^STATUS 401$' denied.out
+http POST http://127.0.0.1:$TRIGGER/flows/shared/login/run?wait=30s ran.out 'Authorization=Bearer tok-123' 'body={"env": "local", "inputs": {"email": "a@b.c"}}'
+grep '^STATUS 200$' ran.out
+grep '"status":"passed"' ran.out
+! grep $PASSWORD ran.out
+
+# Ctrl-C drains and exits 0.
+kill -INT server
+wait server
+stdout 'Replayer +http://127.0.0.1:'$REPLAY
+stdout 'Triggers +http://127.0.0.1:'$TRIGGER
+stdout 'POST /v1/login'
+stdout 'Stopped'
+! stdout $PASSWORD
+! stderr 'tok-123'

@@ -1,0 +1,49 @@
+# import http reads a .http file: requests, file variables as an environment,
+# credentials as secrets.
+exec flowi import http api.http --init ./h
+stdout '^Created collection h'
+stdout 'FLW-IMPORT-001'
+exists h/requests/http/createExample.req.yaml
+exists h/requests/http/get-examples-42.req.yaml
+! grep 'dXNlcjpwYXNz' h/requests/http/get-secure-examples-42.req.yaml
+exec flowi validate
+! stdout 'error'
+
+# import openapi takes a Swagger 2.0 document too.
+exec flowi import openapi swagger.yaml --init ./s
+exists s/requests/getExample.req.yaml
+exec flowi validate
+! stdout 'error'
+
+-- api.http --
+@host = http://localhost:8080
+
+### create
+# @name createExample
+POST {{host}}/examples
+Content-Type: application/json
+
+{"name": "first"}
+
+### get
+GET {{host}}/examples/42
+
+> {%
+  client.test("ok", function() {});
+%}
+
+### secure
+GET {{host}}/secure/examples/42
+Authorization: Basic dXNlcjpwYXNz
+-- swagger.yaml --
+swagger: "2.0"
+info: {title: Examples, version: "1.0"}
+host: localhost:8080
+paths:
+  /examples/{id}:
+    get:
+      operationId: getExample
+      parameters:
+        - {name: id, in: path, required: true, type: string}
+      responses:
+        "200": {description: ok}

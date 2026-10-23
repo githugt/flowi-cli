@@ -1,0 +1,59 @@
+# send prints the body on stdout and the summary on stderr.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+exec flowi workspace mount ./example
+exec flowi send auth/login --env local --with email=a@example.com
+stdout '"token": "u-'
+stderr '^POST .*/v1/login → 200 OK'
+stderr '^seed [0-9]+$'
+! stdout $PASSWORD
+! stderr $PASSWORD
+
+# --save per-status keeps the status file and last.json.
+exec flowi send auth/login --env local --with email=a@example.com --save per-status
+exists config/workspaces/default/data/01JA0000000000000000000001/responses/01JA0000000000000000000010/1/200.json
+exists config/workspaces/default/data/01JA0000000000000000000001/responses/01JA0000000000000000000010/1/last.json
+! grep $PASSWORD config/workspaces/default/data/01JA0000000000000000000001/responses/01JA0000000000000000000010/1/last.json
+
+# --pin writes a pinned example next to the request.
+exec flowi send auth/login --env local --with email=a@example.com --pin
+exists example/requests/auth/login.examples/200.json
+stderr 'pinned example'
+
+# The same seed generates the same values.
+server-url tools/environments/local.yaml
+exec flowi workspace mount ./tools
+exec flowi send echo --env local --seed 7
+cp stdout first.json
+exec flowi send echo --env local --seed 7
+cmp stdout first.json
+exec flowi send echo --env local --seed 8
+! cmp stdout first.json
+
+# --headers shows response headers; --quiet only the status line.
+exec flowi send echo --env local --headers
+stderr 'Content-Type: application/json'
+exec flowi send echo --env local --quiet
+! stdout .
+stderr '→ 200 OK'
+! stderr seed
+
+-- tools/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000T1
+name: Tools
+-- tools/environments/local.yaml --
+id: 01JA00000000000000000000T2
+vars:
+  base_url: SERVER_URL
+-- tools/requests/echo.req.yaml --
+id: 01JA00000000000000000000T4
+name: Echo
+versions:
+  "1":
+    method: POST
+    url: "{{env.base_url}}/echo"
+    headers:
+      X-Seeded: "{{$uuid-v4}}"
+    body:
+      json: |
+        { "email": "{{$email}}" }

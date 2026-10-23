@@ -1,0 +1,13 @@
+# --report writes JUnit, JSON and Markdown reports.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+exec flowi workspace mount ./example
+exec flowi run user-creation --env local --report junit=out.xml --report json=r.json --report markdown=r.md --quiet
+! stdout '✓ login'
+stdout '^✓ passed'
+exists out.xml r.json r.md
+grep '<testsuite ' out.xml
+grep 'classname="User creation.user-creation"' out.xml
+grep '"status": "passed"' r.json
+grep '^# User creation journey' r.md
+! grep $PASSWORD out.xml
+! grep $PASSWORD r.json

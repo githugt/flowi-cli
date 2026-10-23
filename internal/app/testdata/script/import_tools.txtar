@@ -1,0 +1,115 @@
+# curl from standard input: one request per command, credentials replaced.
+exec flowi init ./api
+stdin paste.txt
+exec flowi import curl - --collection api
+stdout '^  ⚠ curl/post-v1-users$'
+stdout 'FLW-IMPORT-006'
+stdout '^2 imported, 0 skipped$'
+stdout '^Imported 2 files into api$'
+! grep 'hunter2' api/requests/curl/post-v1-users.req.yaml
+
+# A skipped item stops the import unless --partial; nothing is written.
+! exec flowi import curl broken.txt --collection api
+stdout '✗ command at line 1 \(skipped\)'
+stdout '\| curl ''https://api.example.com/v1/a'
+stderr 'skipped.*--partial'
+! exists api/requests/curl/get-v1-b.req.yaml
+! exec flowi import curl broken.txt --collection api --partial
+stdout '^Imported 1 file into api$'
+exists api/requests/curl/get-v1-b.req.yaml
+
+# --init with skipped items creates nothing; with --partial it works.
+! exec flowi import curl broken.txt --init ./fresh
+! exists fresh/flowi.yaml
+! exec flowi import curl broken.txt --init ./fresh --partial
+exists fresh/flowi.yaml
+
+# --output json keeps stdout JSON: the report goes to stderr.
+exec flowi import curl paste.txt --collection api --dry-run --output json
+stdout '^\[$'
+! stdout '✓'
+stderr 'curl/post-v1-users'
+
+# Postman: folders, environments, saved responses as examples.
+exec flowi import postman shop.postman_collection.json --collection api
+stdout '✓ Users/Get-user'
+exists api/requests/Users/Get-user.req.yaml
+exists api/requests/Users/Get-user.examples/OK.json
+exists config/workspaces/default/environments/shop.yaml
+exec flowi import postman staging.postman_environment.json --collection api --force
+exists config/workspaces/default/environments/staging.yaml
+
+# HAR: requests, examples and a flow in recorded order.
+exec flowi import har recording.har --collection api --dry-run
+stdout '^  \+ flows/har/recording.arazzo.yaml$'
+stdout '\(dry run: nothing written\)'
+exec flowi import har recording.har --collection api
+exists api/flows/har/recording.arazzo.yaml
+
+# Mermaid resolves labels against the collection; the rest are placeholders.
+exec flowi import mermaid sketch.mmd --collection api
+stdout 'FLW-MERMAID-001'
+exists api/flows/mermaid/sketch.arazzo.yaml
+
+# Everything imported validates.
+exec flowi validate
+! stdout 'error'
+
+# Bruno: a collection folder, into a new collection.
+exec flowi import bruno ./bru --init ./from-bruno --force
+stdout '^Created collection from-bruno'
+exists from-bruno/requests/users/get.req.yaml
+! exists from-bruno/environments
+exists config/workspaces/default/environments/local.yaml
+
+# --force and --skip-existing exclude each other.
+! exec flowi import curl paste.txt --collection api --force --skip-existing
+stderr 'cannot be used together'
+
+# export mermaid writes the flow.
+exec flowi export mermaid har/recording --collection api
+stdout '^flowchart LR$'
+stdout 'req: har/api.example.com/get-v1-users-id'
+
+-- paste.txt --
+curl 'https://api.example.com/v1/users' -H 'authorization: Bearer hunter2' --data-raw '{"name":"Ada"}'
+curl https://api.example.com/v1/health
+-- broken.txt --
+curl 'https://api.example.com/v1/a
+curl https://api.example.com/v1/b
+-- shop.postman_collection.json --
+{
+  "info": {"name": "Shop", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [{"key": "base_url", "value": "https://api.example.com"}],
+  "item": [{"name": "Users", "item": [{
+    "name": "Get user",
+    "request": {"method": "GET", "url": {"raw": "{{base_url}}/v1/users/:id", "variable": [{"key": "id", "value": "42"}]}},
+    "response": [{"name": "OK", "code": 200, "body": "{\"id\": 42}"}]
+  }]}]
+}
+-- staging.postman_environment.json --
+{"name": "Staging", "values": [{"key": "base_url", "value": "https://staging.example.com", "enabled": true}], "_postman_variable_scope": "environment"}
+-- recording.har --
+{"log": {"entries": [
+  {"_resourceType": "xhr", "request": {"method": "GET", "url": "https://api.example.com/v1/users/7", "headers": [], "queryString": []},
+   "response": {"status": 200, "headers": [], "content": {"mimeType": "application/json", "text": "{\"id\": 7}"}}}
+]}}
+-- sketch.mmd --
+flowchart LR
+  get[req: har/api.example.com/get-v1-users-id] --> wait[delay: 1s] --> later[Celebrate]
+-- bru/bruno.json --
+{"version": "1", "name": "Bru", "type": "collection"}
+-- bru/environments/local.bru --
+vars {
+  baseUrl: http://localhost:8080
+}
+-- bru/users/get.bru --
+meta {
+  name: Get
+}
+
+get {
+  url: {{baseUrl}}/v1/users
+  body: none
+  auth: none
+}

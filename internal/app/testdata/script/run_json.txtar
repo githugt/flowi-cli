@@ -1,0 +1,10 @@
+# --output json writes NDJSON events and a final RunResult.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+exec flowi workspace mount ./example
+exec flowi run user-creation --env local --output json
+stdout '^\{"event":"RunStarted",'
+stdout '^\{"event":"NodeStarted",.*"path":"login"'
+stdout '^\{"event":"NodeFinished",.*"path":"verify".*"status":"passed"'
+stdout '^\{"event":"RunFinished",.*"status":"passed"'
+stdout '^\{"event":"RunResult",.*"status":"passed".*"report_file":".*\.json"'
+! stdout $PASSWORD

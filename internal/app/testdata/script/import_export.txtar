@@ -1,0 +1,130 @@
+# import openapi --init creates a collection and adds one request per
+# operation, its response schemas and flows suggested from links.
+exec flowi import openapi pets.yaml --init ./pets --dry-run
+stdout '^  \+ requests/pets/getPet.req.yaml$'
+stdout '^  \+ requests/pets/getPet.schemas/1-200.json$'
+stdout '^  \+ flows/suggested/createPet-to-getPet.arazzo.yaml$'
+stdout '^3 requests?, 1 flow, [0-9]+ files? \(dry run: nothing written\)$'
+! exists pets/requests/pets
+
+exec flowi import openapi pets.yaml --init ./pets
+stdout '^Created collection pets'
+stdout '^Imported [0-9]+ files into pets$'
+exists pets/requests/pets/getPet.req.yaml
+exists pets/requests/pets/getPet.schemas/1-200.json
+exec flowi validate
+! stdout 'error'
+
+# Importing again refuses to overwrite, unless told what to do.
+! exec flowi import openapi pets.yaml --collection pets
+stderr 'FLW-IMPORT-003'
+exec flowi import openapi pets.yaml --collection pets --dry-run
+stdout '^  ~ requests/pets/getPet.req.yaml \(exists\)$'
+exec flowi import openapi pets.yaml --collection pets --skip-existing
+stdout '^Imported 0 files into pets$'
+# Overwriting removes schemas the document no longer has.
+cp no-name.json pets/requests/pets/getPet.schemas/1-299.json
+exec flowi import openapi pets.yaml --collection pets --dry-run
+stdout '^  - requests/pets/getPet.schemas/1-299.json \(removed\)$'
+exec flowi import openapi pets.yaml --collection pets --force
+stdout '^Imported [0-9]+ files into pets$'
+! exists pets/requests/pets/getPet.schemas/1-299.json
+
+# import arazzo calls the requests by operation, and reports what it
+# cannot map.
+exec flowi import arazzo workflow.yaml --collection pets
+stdout '^Imported 1 file into pets$'
+stderr 'FLW-IMPORT-001'
+stderr 'onFailure'
+exists pets/flows/arazzo/fetchName.arazzo.yaml
+
+# Impact reads the imported schema: removing a field breaks its reader.
+exec flowi impact pets/getPet --version 1
+stdout 'contract: schema'
+stdout '✓ flow arazzo/fetchName'
+cp no-name.json pets/requests/pets/getPet.schemas/1-200.json
+! exec flowi impact pets/getPet --version 1
+stdout '✗ flow arazzo/fetchName'
+
+# export arazzo writes the flow back, to stdout or a file.
+exec flowi export arazzo arazzo/fetchName
+stdout '^arazzo: 1.0.1$'
+stdout 'operationId: \$sourceDescriptions.flowi.getPet'
+exec flowi export arazzo arazzo/fetchName -o out.arazzo.yaml
+exists out.arazzo.yaml
+grep 'workflowId: fetchName' out.arazzo.yaml
+
+# Documents of the wrong kind are refused.
+! exec flowi import arazzo pets.yaml --collection pets
+stderr 'FLW-IMPORT-002'
+! exec flowi import openapi missing.yaml --collection pets
+stderr 'missing.yaml'
+
+-- pets.yaml --
+openapi: 3.0.3
+info: {title: Pets, version: 1.0.0}
+paths:
+  /v1/pets:
+    post:
+      operationId: createPet
+      tags: [pets]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/Pet"}
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Pet"}
+          links:
+            GetCreatedPet:
+              operationId: getPet
+              parameters: {petId: $response.body#/id}
+  /v1/pets/{petId}:
+    get:
+      operationId: getPet
+      tags: [pets]
+      parameters:
+        - {name: petId, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: a pet
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Pet"}
+  /health:
+    get:
+      responses:
+        "200": {description: OK}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        id: {type: integer}
+        name: {type: string}
+-- workflow.yaml --
+arazzo: 1.0.1
+info: {title: pets, version: 1.0.0}
+sourceDescriptions: [{name: pets, url: ./pets.yaml, type: openapi}]
+workflows:
+  - workflowId: fetchName
+    inputs:
+      type: object
+      properties:
+        petId: {type: integer}
+    steps:
+      - stepId: fetch
+        operationId: getPet
+        parameters:
+          - {name: petId, in: path, value: $inputs.petId}
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          name: $response.body#/name
+        onFailure:
+          - {name: retry, type: retry, retryAfter: 1}
+-- no-name.json --
+{"type": "object", "properties": {"id": {"type": "integer"}}}

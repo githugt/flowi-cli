@@ -1,0 +1,33 @@
+# --overlay fixes a document before it is imported: here it adds the operationId
+# the document lacks and drops an operation. The document and the overlay are
+# kept in descriptions/.
+exec flowi import openapi spec.yaml --overlay fixes.overlay.yaml --init ./o
+exists o/requests/listExamples.req.yaml
+! exists o/requests/get-internal.req.yaml
+exists o/descriptions/spec.openapi.yaml
+exists o/descriptions/spec.overlay.yaml
+exec flowi validate
+! stdout 'error'
+
+# An overlay that is not one refuses the import.
+! exec flowi import openapi spec.yaml --overlay spec.yaml --collection o
+stderr 'FLW-IMPORT-002'
+
+-- spec.yaml --
+openapi: 3.0.3
+info: {title: Examples, version: "1.0"}
+paths:
+  /examples:
+    get:
+      responses: {"200": {description: ok}}
+  /internal:
+    get:
+      responses: {"200": {description: ok}}
+-- fixes.overlay.yaml --
+overlay: 1.0.0
+info: {title: fixes, version: 1.0.0}
+actions:
+  - target: $.paths['/examples'].get
+    update: {operationId: listExamples}
+  - target: $.paths['/internal']
+    remove: true
