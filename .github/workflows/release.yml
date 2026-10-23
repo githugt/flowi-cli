@@ -10,21 +10,17 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flowi-cli
     steps:
       - uses: actions/checkout@v5
         with:
-          path: flowi-cli
-          fetch-depth: 0
+          fetch-depth: 0 # git-cliff and goreleaser read the history and the tags
       - uses: actions/setup-go@v6
         with:
-          go-version-file: flowi-cli/go.mod
+          go-version-file: go.mod
       - name: release notes
         uses: orhun/git-cliff-action@v4
         with:
-          config: flowi-cli/cliff.toml
+          config: cliff.toml
           args: --latest --strip header
         env:
           OUTPUT: RELEASE_NOTES.md
@@ -33,6 +29,5 @@ jobs:
         with:
           version: "~> v2"
           args: release --clean --release-notes=RELEASE_NOTES.md
-          workdir: flowi-cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

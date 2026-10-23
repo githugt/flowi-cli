@@ -49,6 +49,8 @@ go.work.sum
 *.pprof
 *.log
 
-# goreleaser output and the stray collection a demo run once left here
+# goreleaser output, the release notes the workflow writes (a dirty tree stops goreleaser),
+# and the stray collection a demo run once left here
 /dist/
 /scratch/
+/RELEASE_NOTES.md
