@@ -1,0 +1,31 @@
+# import asyncapi adds one async request per operation and keeps the document
+# in descriptions/.
+exec flowi import asyncapi chat.yaml --init ./chat
+stdout '^Created collection chat'
+exists chat/requests/sendMessage.req.yaml
+exists chat/requests/onMessage.req.yaml
+exists chat/descriptions/chat.asyncapi.yaml
+exec flowi validate
+! stdout 'error'
+
+# A document that is not AsyncAPI is refused.
+! exec flowi import asyncapi no-async.yaml --collection chat
+stderr 'FLW-IMPORT-002'
+
+-- chat.yaml --
+asyncapi: 2.6.0
+info: {title: Chat, version: 1.0.0}
+servers:
+  main: {url: "wss://chat.example.com/socket", protocol: wss}
+channels:
+  messages:
+    publish:
+      operationId: sendMessage
+      message:
+        payload: {type: object, properties: {text: {type: string}}}
+    subscribe:
+      operationId: onMessage
+      message:
+        payload: {type: object}
+-- no-async.yaml --
+openapi: 3.0.0

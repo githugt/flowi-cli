@@ -1,0 +1,58 @@
+# set / get at the user layer.
+exec flowi config set timeout 20s
+exec flowi config get timeout
+stdout '^20s$'
+
+# explain shows every layer, highest first, the winner marked.
+env FLOWI_TIMEOUT=7s
+exec flowi config explain timeout
+stdout '^→ env +7s +environment$'
+stdout '^  user +20s +.*settings\.yaml$'
+stdout '^  default +30s +built-in$'
+env FLOWI_TIMEOUT=
+
+# Personal keys cannot go into the workspace; values are validated.
+! exec flowi config set appearance.theme dark --layer workspace
+stderr 'error FLW-SET-003: "appearance.theme" cannot be set at workspace level'
+! exec flowi config set http.max_redirects 500
+stderr 'error FLW-SET-002'
+! exec flowi config get nope
+stderr 'FLW-SET-001'
+! exec flowi config set timeout 1s --layer collection
+stderr 'want user or workspace'
+
+# Workspace-level values beat user values.
+exec flowi config set defaults.environment staging --layer workspace
+exec flowi config explain defaults.environment
+stdout '^→ workspace +staging +.*workspace\.yaml$'
+
+# reset returns to the default.
+exec flowi config reset timeout
+exec flowi config get timeout
+stdout '^30s$'
+
+# list shows every key with its source.
+exec flowi config list
+stdout '^KEY +VALUE +SOURCE$'
+stdout '^timeout +30s +default$'
+stdout '^defaults\.environment +staging +workspace \(.*workspace\.yaml\)$'
+stdout '^telemetry +off +default$'
+stdout '^logging\.file +"" +default$'
+
+# edit opens $EDITOR on the layer file, then re-validates it.
+[!windows] chmod 755 editor.sh
+[!windows] env EDITOR=$WORK/editor.sh
+[!windows] exec flowi config edit
+[!windows] exec flowi config get telemetry
+[!windows] stdout '^minimal$'
+[!windows] env EDITOR=$WORK/bad-editor.sh
+[!windows] chmod 755 bad-editor.sh
+[!windows] ! exec flowi config edit
+[!windows] stdout 'FLW-SET-002'
+
+-- editor.sh --
+#!/bin/sh
+echo 'telemetry: minimal' >> "$1"
+-- bad-editor.sh --
+#!/bin/sh
+echo 'appearance: {font_size: 99}' >> "$1"

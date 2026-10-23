@@ -1,0 +1,75 @@
+# Clean workspace: exit 0 and a zero summary.
+exec flowi validate
+stderr '^0 errors, 0 warnings$'
+
+# Warnings only (stale path hint) still exit 0.
+cp warn/journey.arazzo.yaml app/flows/journey.arazzo.yaml
+exec flowi validate
+stdout 'warning FLW-REF-005'
+stderr '^0 errors, 1 warnings$'
+
+# A dependency that is not mounted: exit 2 with the repo hint.
+exec flowi workspace unmount 01JA00000000000000000000B1
+! exec flowi validate
+stdout 'error FLW-REF-004: collection "identity" is not mounted'
+stdout 'hint: clone https://example.com/identity and run "flowi workspace mount"'
+
+# An unmounted directory can be validated directly.
+exec flowi workspace mount ./identity
+exec flowi validate ./identity
+stderr '^0 errors, 0 warnings$'
+
+-- config/workspaces/default/workspace.yaml --
+id: 01JA00000000000000000000W1
+name: Default
+collections:
+  - id: 01JA00000000000000000000A1
+    path: app
+  - id: 01JA00000000000000000000B1
+    path: identity
+-- identity/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000B1
+name: identity
+-- identity/requests/verify.req.yaml --
+id: 01JA00000000000000000000B2
+name: Verify
+versions:
+  "1":
+    url: /verify
+-- app/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000A1
+name: app
+depends_on:
+  - id: 01JA00000000000000000000B1
+    name: identity
+    repo: https://example.com/identity
+-- app/flows/journey.arazzo.yaml --
+arazzo: 1.1.0
+workflows:
+  - workflowId: w
+    x-flowi-flow:
+      id: 01JA00000000000000000000A2
+      name: Journey
+      nodes:
+        - id: verify
+          type: request
+          request:
+            collection: identity
+            id: 01JA00000000000000000000B2
+            path: verify
+-- warn/journey.arazzo.yaml --
+arazzo: 1.1.0
+workflows:
+  - workflowId: w
+    x-flowi-flow:
+      id: 01JA00000000000000000000A2
+      name: Journey
+      nodes:
+        - id: verify
+          type: request
+          request:
+            collection: identity
+            id: 01JA00000000000000000000B2
+            path: old/verify

@@ -1,0 +1,38 @@
+# GoReleaser configuration for the flowi command line. Releases are cut by
+# .github/workflows/release.yml when a v* tag is pushed; nothing here is run
+# by the normal CI. The binary has no cgo (design 13.0), so every target is a
+# plain cross-compile. The version printed by `flowi version` comes from the
+# module version Go stamps into tagged builds, so no ldflags are needed.
+version: 2
+
+project_name: flowi
+
+builds:
+  - id: flowi
+    main: ./cmd/flowi
+    binary: flowi
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: flowi
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+
+# The release notes come from git-cliff (`git cliff --latest`), passed with
+# --release-notes, so GoReleaser's own changelog is switched off.
+changelog:
+  disable: true

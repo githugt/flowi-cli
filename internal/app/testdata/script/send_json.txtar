@@ -1,0 +1,15 @@
+# --output json writes one JSON object per event, then the result.
+env FLOWI_SECRET_LOCAL_PASSWORD=$PASSWORD
+exec flowi workspace mount ./example
+exec flowi send auth/login --env local --with email=a@example.com --output json
+stdout '^\{"event":"RunStarted",.*"run_id":"'
+stdout '^\{"event":"HookStarted",.*"phase":"pre"'
+stdout '^\{"event":"RequestSent",.*"method":"POST"'
+stdout '^\{"event":"ResponseReceived",.*"status":200'
+stdout '^\{"event":"RunFinished",.*"status":"passed"'
+stdout '^\{"event":"Result",.*"status":"passed"'
+# One key style everywhere: snake_case, as in the result and saved records.
+! stdout '"RunID"'
+! stdout '"Status"'
+! stdout $PASSWORD
+! stderr .

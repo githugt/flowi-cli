@@ -1,0 +1,88 @@
+exec flowi ls
+cmp stdout all.txt
+
+exec flowi ls requests
+cmp stdout requests.txt
+
+! exec flowi ls widgets
+stderr 'want requests, flows, blueprints or envs'
+
+exec flowi ls blueprints
+cmp stdout blueprints.txt
+
+-- config/workspaces/default/workspace.yaml --
+id: 01JA00000000000000000000W1
+name: Default
+collections:
+  - id: 01JA0000000000000000000001
+    path: app
+-- app/flowi.yaml --
+format: 1
+id: 01JA0000000000000000000001
+name: App
+-- app/requests/health.req.yaml --
+id: 01JA0000000000000000000013
+name: Health
+versions:
+  "1":
+    url: /health
+-- app/requests/auth/login.req.yaml --
+id: 01JA0000000000000000000010
+name: Login
+default: "1"
+versions:
+  "1":
+    url: /v1/login
+  "2":
+    url: /v2/login
+-- app/requests/auth/verify.req.yaml --
+id: 01JA0000000000000000000011
+name: Verify
+versions:
+  "1":
+    url: /v1/verify
+  "1.1":
+    url: /v1.1/verify
+-- app/flows/journey.arazzo.yaml --
+arazzo: 1.1.0
+workflows:
+  - workflowId: w
+    x-flowi-flow:
+      id: 01JA0000000000000000000020
+      name: Journey
+-- app/blueprints/chain.blueprint.yaml --
+id: 01JA0000000000000000000030
+name: Chain
+params:
+  first:
+    type: request-ref
+nodes:
+  - id: a
+    type: request
+    request:
+      param: first
+-- blueprints.txt --
+App (01JA0000000000000000000001)
+  Blueprints
+    Chain  (chain)
+-- all.txt --
+App (01JA0000000000000000000001)
+  Requests
+    Health  (health)  [1*]
+    auth/
+      Login  (auth/login)  [1*, 2]
+      Verify  (auth/verify)  [1, 1.1*]
+  Flows
+    Journey  (journey)
+  Blueprints
+    Chain  (chain)
+Environments (workspace)
+  local
+  staging
+-- requests.txt --
+App (01JA0000000000000000000001)
+  Requests
+    Health  (health)  [1*]
+    auth/
+      Login  (auth/login)  [1*, 2]
+      Verify  (auth/verify)  [1, 1.1*]

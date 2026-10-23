@@ -1,0 +1,26 @@
+# validate reports a broken reference in text and JSON, exiting 2.
+! exec flowi validate ./bad
+stdout '^bad[/\\]flows[/\\]x.arazzo.yaml:12:17: error FLW-REF-001: unknown request id 01JA0000000000000000000099$'
+stderr '1 errors, 0 warnings'
+
+! exec flowi validate ./bad --output json
+stdout '"code":"FLW-REF-001"'
+stdout '"line":12'
+
+-- bad/flowi.yaml --
+format: 1
+id: 01JA0000000000000000000001
+name: bad
+-- bad/flows/x.arazzo.yaml --
+arazzo: 1.1.0
+workflows:
+  - workflowId: w
+    x-flowi-flow:
+      id: 01JA0000000000000000000002
+      name: X
+      nodes:
+        - id: a
+          type: request
+          request:
+            path: nowhere
+            id: 01JA0000000000000000000099

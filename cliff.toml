@@ -1,0 +1,49 @@
+# git-cliff configuration: builds CHANGELOG.md from Conventional Commits.
+#   just changelog            rewrite CHANGELOG.md
+#   git cliff --latest        release notes of the newest tag (used by the release workflow)
+# The layout is what the changelog package of flowi-lib parses (`## [version] - date`,
+# `### Group`, `- entry`), so `flowi changelog` and the app's "What's new" read it.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to the `flowi` command line are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/) and the file is generated from Conventional Commits
+by `git cliff` (see `cliff.toml`).\n
+"""
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+            {{ commit.message | upper_first }}\
+            {% if commit.remote.pr_number %} (#{{ commit.remote.pr_number }}){% endif %}
+    {% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "v[0-9]*"
+sort_commits = "oldest"
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^doc", group = "Documentation" },
+  { message = "^revert", group = "Reverted" },
+  { message = "^(test|chore|ci|build|style)", skip = true },
+]

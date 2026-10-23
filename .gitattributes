@@ -1,0 +1,8 @@
+# Check text files out with LF endings on every platform, whatever the user's
+# core.autocrlf says. Tests compare files byte for byte with golden files and
+# with what Flow-I writes (LF), so a Windows checkout with CRLF fails them.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

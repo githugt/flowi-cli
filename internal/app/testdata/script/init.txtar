@@ -1,0 +1,20 @@
+# init creates and mounts a collection named after its directory.
+exec flowi init ./demo
+stdout '^Created collection demo \(01[0-9A-Z]{24}\) at \.[/\\]demo$'
+stdout '^Mounted in workspace "Default"$'
+exists demo/flowi.yaml
+exists demo/requests
+exists demo/flows
+! exists demo/environments
+
+# A second init in the same place is refused.
+! exec flowi init ./demo
+stderr 'already contains flowi.yaml'
+
+# --name and --no-mount.
+exec flowi init ./other --name Other --no-mount
+stdout 'Created collection Other'
+! stdout Mounted
+exec flowi workspace ls
+stdout 'demo'
+! stdout 'Other'

@@ -1,0 +1,46 @@
+# A non-canonical file: --check reports it and exits 1 without writing.
+! exec flowi fmt ./c --check
+stdout '^would format c[/\\]requests[/\\]r.req.yaml$'
+cmp c/requests/r.req.yaml messy.yaml
+
+# fmt rewrites it canonically; a second check is clean.
+exec flowi fmt ./c
+stdout '^formatted c[/\\]requests[/\\]r.req.yaml$'
+cmp c/requests/r.req.yaml canonical.yaml
+exec flowi fmt ./c --check
+! stdout .
+
+# A file with a YAML syntax error is never formatted.
+cp broken.yaml c/requests/r.req.yaml
+! exec flowi fmt ./c
+stdout 'error FLW-YAML-001'
+cmp c/requests/r.req.yaml broken.yaml
+
+-- c/flowi.yaml --
+format: 1
+id: 01JA00000000000000000000C1
+name: c
+-- c/requests/r.req.yaml --
+name: R
+id: 01JA00000000000000000000C2
+versions:
+  "2": {url: /two}
+  "1": {url: /one, method: GET}
+-- messy.yaml --
+name: R
+id: 01JA00000000000000000000C2
+versions:
+  "2": {url: /two}
+  "1": {url: /one, method: GET}
+-- canonical.yaml --
+id: 01JA00000000000000000000C2
+name: R
+versions:
+  "1":
+    method: GET
+    url: /one
+  "2":
+    url: /two
+-- broken.yaml --
+id: 01JA00000000000000000000C2
+versions: [unclosed
