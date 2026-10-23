@@ -9,8 +9,11 @@ stderr 'http://'
 freeport PORT
 exec flowi serve --replay-addr 127.0.0.1:$PORT --trigger-addr 127.0.0.1:0 &quiet&
 http-wait http://127.0.0.1:$PORT/__flowi/routes
-kill -INT quiet
-wait quiet
+# testscript cannot send Ctrl-C to a Windows process, so there it is killed.
+[!windows] kill -INT quiet
+[windows] kill quiet
+[!windows] wait quiet
+[windows] ! wait quiet
 stdout 'triggers are off'
 stdout 'flowi serve token'
 

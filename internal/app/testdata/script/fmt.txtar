@@ -1,11 +1,11 @@
 # A non-canonical file: --check reports it and exits 1 without writing.
 ! exec flowi fmt ./c --check
-stdout '^would format c/requests/r.req.yaml$'
+stdout '^would format c[/\\]requests[/\\]r.req.yaml$'
 cmp c/requests/r.req.yaml messy.yaml
 
 # fmt rewrites it canonically; a second check is clean.
 exec flowi fmt ./c
-stdout '^formatted c/requests/r.req.yaml$'
+stdout '^formatted c[/\\]requests[/\\]r.req.yaml$'
 cmp c/requests/r.req.yaml canonical.yaml
 exec flowi fmt ./c --check
 ! stdout .

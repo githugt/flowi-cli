@@ -2,8 +2,8 @@
 ! exec flowi fmt ./c
 stdout 'warning FLW-SET-001: unknown setting "timout"'
 stdout 'error FLW-SET-002'
-stdout '^skipped c/requests/bad.req.yaml$'
-stdout '^formatted c/requests/messy.req.yaml$'
+stdout '^skipped c[/\\]requests[/\\]bad.req.yaml$'
+stdout '^formatted c[/\\]requests[/\\]messy.req.yaml$'
 cmp c/requests/bad.req.yaml bad.yaml
 
 # A second YAML document is an error, so the file is skipped too.
@@ -16,10 +16,10 @@ cmp c/requests/messy.req.yaml twodocs.yaml
 cp commented.yaml c/requests/messy.req.yaml
 rm c/requests/bad.req.yaml
 exec flowi fmt ./c
-stdout '^skipped c/requests/messy.req.yaml: it has comments, which fmt would remove \(use --force to rewrite it anyway\)$'
+stdout '^skipped c[/\\]requests[/\\]messy.req.yaml: it has comments, which fmt would remove \(use --force to rewrite it anyway\)$'
 cmp c/requests/messy.req.yaml commented.yaml
 exec flowi fmt ./c --force
-stdout '^formatted c/requests/messy.req.yaml \(comments removed\)$'
+stdout '^formatted c[/\\]requests[/\\]messy.req.yaml \(comments removed\)$'
 ! grep '#' c/requests/messy.req.yaml
 
 -- c/flowi.yaml --

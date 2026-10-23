@@ -1,6 +1,6 @@
 # validate reports a broken reference in text and JSON, exiting 2.
 ! exec flowi validate ./bad
-stdout '^bad/flows/x.arazzo.yaml:12:17: error FLW-REF-001: unknown request id 01JA0000000000000000000099$'
+stdout '^bad[/\\]flows[/\\]x.arazzo.yaml:12:17: error FLW-REF-001: unknown request id 01JA0000000000000000000099$'
 stderr '1 errors, 0 warnings'
 
 ! exec flowi validate ./bad --output json

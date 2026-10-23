@@ -1,6 +1,6 @@
 # init creates and mounts a collection named after its directory.
 exec flowi init ./demo
-stdout '^Created collection demo \(01[0-9A-Z]{24}\) at \./demo$'
+stdout '^Created collection demo \(01[0-9A-Z]{24}\) at \.[/\\]demo$'
 stdout '^Mounted in workspace "Default"$'
 exists demo/flowi.yaml
 exists demo/requests

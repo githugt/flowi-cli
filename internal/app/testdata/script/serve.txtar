@@ -27,12 +27,15 @@ grep '^STATUS 200$' ran.out
 grep '"status":"passed"' ran.out
 ! grep $PASSWORD ran.out
 
-# Ctrl-C drains and exits 0.
-kill -INT server
-wait server
+# Ctrl-C drains and exits 0. testscript cannot send Ctrl-C to a Windows process, so there it is killed
+# and the drain is not checked.
+[!windows] kill -INT server
+[windows] kill server
+[!windows] wait server
+[windows] ! wait server
 stdout 'Replayer +http://127.0.0.1:'$REPLAY
 stdout 'Triggers +http://127.0.0.1:'$TRIGGER
 stdout 'POST /v1/login'
-stdout 'Stopped'
+[!windows] stdout 'Stopped'
 ! stdout $PASSWORD
 ! stderr 'tok-123'
