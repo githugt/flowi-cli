@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"text/tabwriter"
 
 	"github.com/samber/do/v2"
@@ -43,10 +44,23 @@ func newSecretCommand(i do.Injector) *cobra.Command {
 		Use:   "ls",
 		Short: "List secret variables and whether each is set (values are never shown)",
 		Args:  cobra.NoArgs,
-		RunE:  func(cmd *cobra.Command, _ []string) error { return runSecretLs(cmd, i, env) },
+		RunE:  func(cmd *cobra.Command, _ []string) error { return runSecretLs(cmd, i, env, "") },
 	}
 	ls.Flags().StringVar(&env, "env", "", "only this environment")
-	cmd.AddCommand(set, unset, ls)
+	var reveal bool
+	get := &cobra.Command{
+		Use:   "get <env> <name>",
+		Short: "Say whether a secret is set; with --reveal, print its value",
+		Long: "Without --reveal this prints only the secret's state. With --reveal the value is printed on its own,\n" +
+			"so $(flowi secret get local password --reveal) works in a script. A secret that FLOWI_SECRET_<ENV>_<NAME>\n" +
+			"provides is not revealed: the variable is already in your environment.",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSecretGet(cmd, i, args[0], args[1], reveal)
+		},
+	}
+	get.Flags().BoolVar(&reveal, "reveal", false, "print the secret's value")
+	cmd.AddCommand(set, unset, ls, get)
 	return cmd
 }
 
@@ -84,13 +98,39 @@ func runSecretUnset(cmd *cobra.Command, i do.Injector, env, name string) error {
 	return nil
 }
 
+func runSecretGet(cmd *cobra.Command, i do.Injector, env, name string, reveal bool) error {
+	if !reveal {
+		return runSecretLs(cmd, i, env, name)
+	}
+	s, err := session(cmd, i)
+	if err != nil {
+		return err
+	}
+	value, err := s.Workspace.RevealSecret(env, name)
+	if err != nil {
+		return err
+	}
+	slog.Info("a secret was revealed", "Event", "SecretRevealed", "Environment", env, "Name", name)
+	if do.MustInvoke[*GlobalOptions](i).Output == OutputJSON {
+		return writeJSONLines(cmd.OutOrStdout(), []secretValue{{Environment: env, Name: name, Value: value}})
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), value)
+	return err
+}
+
+type secretValue struct {
+	Environment string `json:"environment"`
+	Name        string `json:"name"`
+	Value       string `json:"value"`
+}
+
 type secretRow struct {
 	Environment string `json:"environment"`
 	Name        string `json:"name"`
 	State       string `json:"state"` // set | missing | env override
 }
 
-func runSecretLs(cmd *cobra.Command, i do.Injector, env string) error {
+func runSecretLs(cmd *cobra.Command, i do.Injector, env, name string) error {
 	s, err := session(cmd, i)
 	if err != nil {
 		return err
@@ -99,17 +139,17 @@ func runSecretLs(cmd *cobra.Command, i do.Injector, env string) error {
 	if err != nil {
 		return err
 	}
-	rows := secretRows(infos, env)
+	rows := secretRows(infos, env, name)
 	if do.MustInvoke[*GlobalOptions](i).Output == OutputJSON {
 		return writeJSONLines(cmd.OutOrStdout(), rows)
 	}
 	return writeSecretTable(cmd.OutOrStdout(), rows)
 }
 
-func secretRows(infos []flowi.SecretInfo, env string) []secretRow {
+func secretRows(infos []flowi.SecretInfo, env, name string) []secretRow {
 	var rows []secretRow
 	for _, s := range infos {
-		if env != "" && s.Environment != env {
+		if (env != "" && s.Environment != env) || (name != "" && s.Name != name) {
 			continue
 		}
 		state := "missing"

@@ -28,6 +28,9 @@ git clone https://github.com/githugt/flowi-cli && cd flowi-cli
 just build        # puts the binary in ./bin/flowi
 ```
 
+Runs on macOS, Linux and Windows (Windows 10 or later: programs built with Go 1.21 or later do not run on Windows 7
+or 8).
+
 ## Five-minute tour
 
 ```bash
@@ -35,6 +38,7 @@ flowi init ./my-api                          # create a collection and mount it
 flowi workspace mount ../other-api           # or mount an existing one
 flowi ls requests                            # what is in it
 flowi secret set staging password            # prompts; the value goes to the encrypted vault
+flowi secret get staging password --reveal   # prints it again (without --reveal: only whether it is set)
 flowi send auth/login --env staging --with email=a@example.com
 flowi run user-creation --env staging        # run a flow
 flowi impact auth/login                      # who uses this request, and do they still fit it?
